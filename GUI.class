@@ -1,0 +1,333 @@
+package bashingcounter;
+
+import java.awt.Color;
+import java.awt.EventQueue;
+import java.awt.Font;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.GroupLayout;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.LayoutStyle;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
+
+public class GUI extends JFrame {
+  private String _path;
+  
+  private boolean _validPath = false;
+  
+  private Timer _timer;
+  
+  private BufferedInputStream _reader;
+  
+  String _currLine;
+  
+  HashMap<String, Integer> _totalCount = new HashMap<>();
+  
+  HashMap<String, Integer> _fightCount = new HashMap<>();
+  
+  private JCheckBox checkBox;
+  
+  private JButton jButton1;
+  
+  private JButton jButton2;
+  
+  private JButton jButton3;
+  
+  private JButton jButton4;
+  
+  private JButton jButton5;
+  
+  private JScrollPane jScrollPane1;
+  
+  private JTextArea resultField;
+  
+  public GUI() {
+    initComponents();
+  }
+  
+  private void StartRun() throws FileNotFoundException {
+    this._timer = new Timer();
+    this._reader = new BufferedInputStream(new FileInputStream(this._path));
+    this._currLine = "";
+    this._timer.scheduleAtFixedRate(new TimerTask() {
+          public void run() {
+            boolean running = true;
+            int i = 0;
+            try {
+              while (running && i < 50000) {
+                if (GUI.this._reader.available() > 0) {
+                  char read = (char)GUI.this._reader.read();
+                  if (read == '\n') {
+                    if (GUI.this._currLine.contains("some treasure") || GUI.this._currLine.contains("some loot")) {
+                      System.out.println(GUI.this._currLine);
+                      GUI.this.HandleTreasure(GUI.this._currLine);
+                    } 
+                    GUI.this._currLine = "";
+                  } else {
+                    GUI.this._currLine += read;
+                  } 
+                  i++;
+                  continue;
+                } 
+                running = false;
+                System.out.println("Done");
+              } 
+            } catch (IOException ex) {
+              Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, (String)null, ex);
+            } 
+          }
+        }1000L, 1000L);
+  }
+  
+  private void UpdateTextbox() {
+    Map<String, Integer> temp = this._fightCount;
+    if (this.checkBox.isSelected())
+      temp = this._totalCount; 
+    this.resultField.setText("");
+    Map<String, Integer> workMap = sortByValue(temp);
+    for (Map.Entry<String, Integer> entry : workMap.entrySet())
+      this.resultField.setText(this.resultField.getText() + entry.getValue() + " - " + (String)entry.getKey() + "\n"); 
+  }
+  
+  private void CopyFight() {
+    Map<String, Integer> temp = this._fightCount;
+    Map<String, Integer> workMap = sortByValue(temp);
+    String copy = "";
+    for (Map.Entry<String, Integer> entry : workMap.entrySet())
+      copy = copy + entry.getValue() + " - " + (String)entry.getKey() + " "; 
+    StringSelection selectCopy = new StringSelection(copy);
+    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+    clipboard.setContents(selectCopy, null);
+  }
+  
+  private void CopyTotal() {
+    Map<String, Integer> temp = this._totalCount;
+    Map<String, Integer> workMap = sortByValue(temp);
+    String copy = "";
+    for (Map.Entry<String, Integer> entry : workMap.entrySet())
+      copy = copy + entry.getValue() + " - " + (String)entry.getKey() + " "; 
+    StringSelection selectCopy = new StringSelection(copy);
+    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+    clipboard.setContents(selectCopy, null);
+  }
+  
+  public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
+    List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
+    list.sort((Comparator)Map.Entry.comparingByValue());
+    Collections.reverse(list);
+    Map<K, V> result = new LinkedHashMap<>();
+    for (Map.Entry<K, V> entry : list)
+      result.put(entry.getKey(), entry.getValue()); 
+    return result;
+  }
+  
+  private void HandleTreasure(String line) {
+    if (line.contains("says,") || line.contains("chats") || line.contains("tells ye") || line.contains("Ye told") || line.contains("thinks,"))
+      return; 
+    String[] parts = line.split(" ");
+    if (parts.length >= 1) {
+      String name = parts[1];
+      if (this._totalCount.containsKey(name)) {
+        int count = ((Integer)this._totalCount.get(name)).intValue();
+        this._totalCount.put(name, Integer.valueOf(count + 1));
+        System.out.println(line + " -> " + name + " " + (count + 1));
+      } else {
+        this._totalCount.put(name, Integer.valueOf(1));
+        System.out.println(line + " -> " + name + " 1");
+      } 
+      if (this._fightCount.containsKey(name)) {
+        int count = ((Integer)this._fightCount.get(name)).intValue();
+        this._fightCount.put(name, Integer.valueOf(count + 1));
+      } else {
+        this._fightCount.put(name, Integer.valueOf(1));
+      } 
+      UpdateTextbox();
+    } 
+  }
+  
+  private void initComponents() {
+    this.jButton1 = new JButton();
+    this.jButton2 = new JButton();
+    this.jButton3 = new JButton();
+    this.jButton4 = new JButton();
+    this.jButton5 = new JButton();
+    this.checkBox = new JCheckBox();
+    this.jScrollPane1 = new JScrollPane();
+    this.resultField = new JTextArea();
+    setDefaultCloseOperation(3);
+    setResizable(false);
+    this.jButton1.setText("Start");
+    this.jButton1.addActionListener(new ActionListener() {
+          public void actionPerformed(ActionEvent evt) {
+            GUI.this.jButton1ActionPerformed(evt);
+          }
+        });
+    this.jButton2.setText("Stop");
+    this.jButton2.addActionListener(new ActionListener() {
+          public void actionPerformed(ActionEvent evt) {
+            GUI.this.jButton2ActionPerformed(evt);
+          }
+        });
+    this.jButton3.setText("Copy Totals");
+    this.jButton3.addActionListener(new ActionListener() {
+          public void actionPerformed(ActionEvent evt) {
+            GUI.this.jButton3ActionPerformed(evt);
+          }
+        });
+    this.jButton4.setText("Reset Fight");
+    this.jButton4.addActionListener(new ActionListener() {
+          public void actionPerformed(ActionEvent evt) {
+            GUI.this.jButton4ActionPerformed(evt);
+          }
+        });
+    this.jButton5.setText("Copy Fight");
+    this.jButton5.addActionListener(new ActionListener() {
+          public void actionPerformed(ActionEvent evt) {
+            GUI.this.jButton5ActionPerformed(evt);
+          }
+        });
+    this.checkBox.setText("Show Totals");
+    this.checkBox.addActionListener(new ActionListener() {
+          public void actionPerformed(ActionEvent evt) {
+            GUI.this.checkBoxActionPerformed(evt);
+          }
+        });
+    this.resultField.setColumns(20);
+    this.resultField.setFont(new Font("Dialog", 0, 14));
+    this.resultField.setRows(5);
+    this.resultField.setDisabledTextColor(new Color(0, 0, 0));
+    this.resultField.setEnabled(false);
+    this.jScrollPane1.setViewportView(this.resultField);
+    GroupLayout layout = new GroupLayout(getContentPane());
+    getContentPane().setLayout(layout);
+    layout.setHorizontalGroup(layout
+        .createParallelGroup(GroupLayout.Alignment.LEADING)
+        .addGroup(layout.createSequentialGroup()
+          .addContainerGap()
+          .addComponent(this.jScrollPane1, -2, 194, -2)
+          .addGap(18, 18, 18)
+          .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, false)
+              .addComponent(this.jButton3, -1, -1, 32767)
+              .addComponent(this.jButton1, -1, -1, 32767)
+              .addComponent(this.jButton2, -1, -1, 32767)
+              .addComponent(this.jButton4, -1, -1, 32767)
+              .addComponent(this.jButton5, -1, -1, 32767))
+            .addComponent(this.checkBox))
+          .addContainerGap(-1, 32767)));
+    layout.setVerticalGroup(layout
+        .createParallelGroup(GroupLayout.Alignment.LEADING)
+        .addGroup(layout.createSequentialGroup()
+          .addContainerGap()
+          .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+              .addComponent(this.jScrollPane1)
+              .addContainerGap())
+            .addGroup(layout.createSequentialGroup()
+              .addComponent(this.jButton1)
+              .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+              .addComponent(this.jButton2)
+              .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+              .addComponent(this.jButton4)
+              .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+              .addComponent(this.jButton5)
+              .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+              .addComponent(this.jButton3)
+              .addGap(92, 92, 92)
+              .addComponent(this.checkBox)
+              .addContainerGap(-1, 32767)))));
+    pack();
+  }
+  
+  private void jButton2ActionPerformed(ActionEvent evt) {
+    if (this._timer != null)
+      this._timer.cancel(); 
+    this.jButton1.setEnabled(true);
+  }
+  
+  private void jButton5ActionPerformed(ActionEvent evt) {
+    CopyFight();
+  }
+  
+  private void jButton1ActionPerformed(ActionEvent evt) {
+    this._totalCount = new HashMap<>();
+    this._fightCount = new HashMap<>();
+    if (this._timer != null)
+      this._timer.cancel(); 
+    JFileChooser chooser = new JFileChooser();
+    int returnVal = chooser.showOpenDialog(this);
+    if (returnVal == 0) {
+      this._path = chooser.getCurrentDirectory() + "\\" + chooser.getSelectedFile().getName();
+      this._validPath = true;
+      System.out.println("You chose to open this file: " + this._path);
+      try {
+        StartRun();
+      } catch (FileNotFoundException ex) {
+        Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, (String)null, ex);
+      } 
+      this.jButton1.setEnabled(false);
+    } 
+  }
+  
+  private void jButton4ActionPerformed(ActionEvent evt) {
+    if (!this.checkBox.isSelected())
+      this.resultField.setText(""); 
+    this._fightCount = new HashMap<>();
+  }
+  
+  private void checkBoxActionPerformed(ActionEvent evt) {
+    UpdateTextbox();
+  }
+  
+  private void jButton3ActionPerformed(ActionEvent evt) {
+    CopyTotal();
+  }
+  
+  public static void main(String[] args) {
+    try {
+      for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+        if ("Nimbus".equals(info.getName())) {
+          UIManager.setLookAndFeel(info.getClassName());
+          break;
+        } 
+      } 
+    } catch (ClassNotFoundException ex) {
+      Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, (String)null, ex);
+    } catch (InstantiationException ex) {
+      Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, (String)null, ex);
+    } catch (IllegalAccessException ex) {
+      Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, (String)null, ex);
+    } catch (UnsupportedLookAndFeelException ex) {
+      Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, (String)null, ex);
+    } 
+    EventQueue.invokeLater(new Runnable() {
+          public void run() {
+            (new GUI()).setVisible(true);
+          }
+        });
+  }
+}
