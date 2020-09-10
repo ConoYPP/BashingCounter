@@ -1,0 +1,11 @@
+package bashingcounter;
+
+import javax.swing.JFrame;
+
+public class BashingCounter {
+  public static void main(String[] args) {
+    JFrame mainGUI = new GUI();
+    mainGUI.setTitle("Bashing Counter - Niels");
+    mainGUI.setVisible(true);
+  }
+}
